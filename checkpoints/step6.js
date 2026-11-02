@@ -1,0 +1,116 @@
+// ===== FRUIT MERGE: a Suika-style game in plain JavaScript =====
+
+// Grab things from the HTML page
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Game settings (change these to play around!)
+const GRAVITY = 0.4;
+const BOUNCE = 0.3;
+const FRICTION = 0.98;
+const DROP_Y = 50;
+
+// All the fruits, from smallest to biggest
+const FRUITS = [
+  { name: 'cherry',     radius: 14, color: '#d62839' },
+  { name: 'strawberry', radius: 20, color: '#ff6b6b' },
+  { name: 'grape',      radius: 27, color: '#9b5de5' },
+  { name: 'orange',     radius: 34, color: '#ff9f1c' },
+  { name: 'apple',      radius: 42, color: '#8ac926' },
+  { name: 'pear',       radius: 51, color: '#e9d985' },
+  { name: 'peach',      radius: 60, color: '#ffafcc' },
+  { name: 'pineapple',  radius: 70, color: '#ffd60a' },
+  { name: 'melon',      radius: 82, color: '#b5e48c' },
+  { name: 'watermelon', radius: 96, color: '#2d6a4f' },
+];
+
+// The game's memory (these change while we play)
+let fruits = [];
+let mouseX = canvas.width / 2;
+let nextType = randomType();
+let canDrop = true;
+
+// Little helper functions
+function randomType() {
+  return Math.floor(Math.random() * 5);
+}
+
+function makeFruit(x, y, type) {
+  return { x: x, y: y, vx: 0, vy: 0, type: type, radius: FRUITS[type].radius };
+}
+
+function circle(x, y, r, color) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawFruit(x, y, type) {
+  const r = FRUITS[type].radius;
+  circle(x, y, r, FRUITS[type].color);                          // body
+  circle(x - r * 0.35, y - r * 0.35, r * 0.25, 'rgba(255,255,255,0.5)'); // shine
+  circle(x - r * 0.3, y + r * 0.1, r * 0.1, '#3b2a1a');          // left eye
+  circle(x + r * 0.3, y + r * 0.1, r * 0.1, '#3b2a1a');          // right eye
+}
+
+// Mouse controls
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = event.clientX - rect.left;
+});
+
+canvas.addEventListener('click', () => {
+  if (!canDrop) return;
+  fruits.push(makeFruit(dropX(), DROP_Y, nextType));
+  nextType = randomType();
+  canDrop = false;
+  setTimeout(() => { canDrop = true; }, 500);
+});
+
+function dropX() {
+  const r = FRUITS[nextType].radius;
+  return Math.min(Math.max(mouseX, r), canvas.width - r);
+}
+
+// Physics: falling
+function moveFruits() {
+  fruits.forEach((f) => {
+    f.vy += GRAVITY;    // gravity pulls a tiny bit more every frame
+    f.vx *= FRICTION;   // sliding slows down a tiny bit every frame
+    f.x += f.vx;
+    f.y += f.vy;
+  });
+}
+
+function keepInJar(f) {
+  if (f.y + f.radius > canvas.height) {   // floor
+    f.y = canvas.height - f.radius;
+    f.vy *= -BOUNCE;
+  }
+  if (f.x - f.radius < 0) {               // left wall
+    f.x = f.radius;
+    f.vx *= -BOUNCE;
+  }
+  if (f.x + f.radius > canvas.width) {    // right wall
+    f.x = canvas.width - f.radius;
+    f.vx *= -BOUNCE;
+  }
+}
+
+// Drawing everything
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (canDrop) drawFruit(dropX(), DROP_Y, nextType);
+  fruits.forEach((f) => drawFruit(f.x, f.y, f.type));
+}
+
+// The game loop: runs about 60 times every second
+function gameLoop() {
+  moveFruits();
+  fruits.forEach((f) => keepInJar(f));
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
